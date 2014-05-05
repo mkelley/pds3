@@ -4,26 +4,6 @@
 pds3 --- Simple (minded) PDS3 tools
 ===================================
 
-Tools to read PDS3 labels or data.  Note, these functions are
-rudimentary, and should not be used to validate labels.
-
-Requires ply (the Python-Lex-Yacc module), numpy, and astropy.
-
-Time fields are assumed to be on the UTC scale.  I haven't verified if
-that assumption is valid for PDS3.
-
-Currently, only ASCII tables can be read, although I would like to
-support binary tables.
-
-
-Problems?  Please, send me the label or the code to fix it.
-
-- Michael S. P. Kelley, UMD
-
-
-Functions
----------
-
 read_label       - Read a PDS3 label.
 read_ascii_table - Read an ASCII table as described by a label.
 read_table       - Read a table as described by a label.
