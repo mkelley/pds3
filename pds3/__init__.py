@@ -213,7 +213,7 @@ def _records2dict(records, object_index=0):
 
     return label
 
-def _find_file(filename, path='./'):
+def _find_file(filename, path='.'):
     """Search a directory for a file.
 
     PDS3 file names are required to be upper case, but in case-
@@ -280,7 +280,7 @@ def read_label(filename, debug=False):
     records = parser.parse(raw_label)
     return _records2dict(records)
 
-def read_ascii_table(label, key, path=''):
+def read_ascii_table(label, key, path='.'):
     """Read an ASCII table as described by the label.
 
     Only fixed length records are supported.
@@ -359,13 +359,14 @@ def read_ascii_table(label, key, path=''):
                        data_start=start, data_end=nrows+start,
                        col_starts=col_starts, col_ends=col_ends,
                        converters=converters, guess=False)
-    inf.close()
+    #inf.close()
 
     # Save column meta data.
     for i in range(n):
         col = desc['COLUMN'][i]
         table.columns[i].name = col['NAME']
-        table.columns[i].description = col['DESCRIPTION']
+        if 'DESCRIPTION' in col:
+            table.columns[i].description = col['DESCRIPTION']
 
     # Save table meta data.
     for k, v in desc.items():
@@ -375,7 +376,7 @@ def read_ascii_table(label, key, path=''):
     return table
 
 
-def read_table(label, key, path=''):
+def read_table(label, key, path='.'):
     """Read table as described by the label.
 
     Calls `read_ascii_table` or `read_binary_table` as appropriate.
