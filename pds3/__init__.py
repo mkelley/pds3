@@ -361,6 +361,17 @@ def read_ascii_table(label, key, path='.'):
                        converters=converters, guess=False)
     #inf.close()
 
+    # Mask data
+    for i in range(n):
+        col = desc['COLUMN'][i]
+        missing_constant = col.get('MISSING_CONSTANT', None)
+        if missing_constant is None:
+            continue
+
+        j = table.columns[i] == missing_constant
+        if np.any(j):
+            table.columns[i].mask = j
+
     # Save column meta data.
     for i in range(n):
         col = desc['COLUMN'][i]
