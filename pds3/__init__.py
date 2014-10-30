@@ -53,7 +53,7 @@ class Parser():
         return t
 
     def t_DATE(self, t):
-        r'\d\d\d\d-\d\d-\d\d(T\d\d:\d\d(:\d\d(.\d+)?)?)?'
+        r'\d\d\d\d-\d\d-\d\d(T\d\d:\d\d(:\d\d(.\d+)?)?)?Z?'
         from astropy.time import Time
         t.value = Time(t.value, scale='utc')
         return t
