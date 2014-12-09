@@ -38,9 +38,11 @@ class Parser():
     unit_translate = dict(v='V', k='K')
 
     def __init__(self, debug=False):
+        import os
         self.debug = debug
         self.lexer = lex.lex(module=self, debug=self.debug)
-        self.parser = yacc.yacc(module=self, debug=self.debug)
+        self.parser = yacc.yacc(module=self, debug=self.debug,
+                                write_tables=0)
 
     def parse(self, raw_label, **kwargs):
         return self.parser.parse(raw_label, lexer=self.lexer, debug=self.debug,
