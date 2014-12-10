@@ -28,7 +28,7 @@ class Parser():
     tokens = ['KEYWORD', 'POINTER', 'STRING', 'INT', 'REAL',
               'UNIT', 'DATE', 'END']
 
-    literals = list('=(),')
+    literals = list('=(){},')
 
     t_POINTER = r'\^[A-Z0-9_]+'
     t_ignore_COMMENT = r'/\*.+?\*/'
@@ -143,7 +143,9 @@ class Parser():
 
     def p_sequence(self, p):
         """sequence : '(' value ')'
-                    | '(' sequence_values ')'"""
+                    | '(' sequence_values ')'
+                    | '{' value '}'
+                    | '{' sequence_values '}'"""
         p[0] = p[2]
 
     def p_sequence_values(self, p):
