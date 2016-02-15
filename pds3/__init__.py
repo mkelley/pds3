@@ -38,9 +38,11 @@ class Parser():
     unit_translate = dict(v='V', k='K')
 
     def __init__(self, debug=False):
+        import os
         self.debug = debug
         self.lexer = lex.lex(module=self, debug=self.debug)
-        self.parser = yacc.yacc(module=self, debug=self.debug)
+        self.parser = yacc.yacc(module=self, debug=self.debug,
+                                write_tables=0)
 
     def parse(self, raw_label, **kwargs):
         return self.parser.parse(raw_label, lexer=self.lexer, debug=self.debug,
@@ -53,7 +55,7 @@ class Parser():
         return t
 
     def t_DATE(self, t):
-        r'\d\d\d\d-\d\d-\d\d(T\d\d:\d\d(:\d\d(.\d+)?)?)?'
+        r'\d\d\d\d-\d\d-\d\d(T\d\d:\d\d(:\d\d(.\d+)?)?)?Z?'
         from astropy.time import Time
         t.value = Time(t.value, scale='utc')
         return t
@@ -78,7 +80,7 @@ class Parser():
         return t
  
     def t_REAL(self, t):
-        r'[+-]?[0-9]+\.[0-9]*([Ee][+-]?[0-9]+)?'
+        r'[+-]?(([0-9]+\.[0-9]*)|(\.[0-9]+))([Ee][+-]?[0-9]+)?'
         t.value = float(t.value)
         return t
 
@@ -148,7 +150,9 @@ class Parser():
 
     def p_sequence(self, p):
         """sequence : '(' value ')'
-                    | '(' sequence_values ')'"""
+                    | '(' sequence_values ')'
+                    | '{' value '}'
+                    | '{' sequence_values '}'"""
         p[0] = p[2]
 
     def p_sequence_values(self, p):
@@ -220,7 +224,7 @@ def _records2dict(records, object_index=0):
 
     return label
 
-def _find_file(filename, path='./'):
+def _find_file(filename, path='.'):
     """Search a directory for a file.
 
     PDS3 file names are required to be upper case, but in case-
@@ -292,7 +296,7 @@ def read_label(filename, debug=False):
     records = parser.parse(raw_label)
     return _records2dict(records)
 
-def read_ascii_table(label, key, path=''):
+def read_ascii_table(label, key, path='.'):
     """Read an ASCII table as described by the label.
 
     Only fixed length records are supported.
@@ -371,13 +375,25 @@ def read_ascii_table(label, key, path=''):
                        data_start=start, data_end=nrows+start,
                        col_starts=col_starts, col_ends=col_ends,
                        converters=converters, guess=False)
-    inf.close()
+    #inf.close()
+
+    # Mask data
+    for i in range(n):
+        col = desc['COLUMN'][i]
+        missing_constant = col.get('MISSING_CONSTANT', None)
+        if missing_constant is None:
+            continue
+
+        j = table.columns[i] == missing_constant
+        if np.any(j):
+            table.columns[i].mask = j
 
     # Save column meta data.
     for i in range(n):
         col = desc['COLUMN'][i]
         table.columns[i].name = col['NAME']
-        table.columns[i].description = col['DESCRIPTION']
+        if 'DESCRIPTION' in col:
+            table.columns[i].description = col['DESCRIPTION']
 
     # Save table meta data.
     for k, v in desc.items():
@@ -387,7 +403,7 @@ def read_ascii_table(label, key, path=''):
     return table
 
 
-def read_table(label, key, path=''):
+def read_table(label, key, path='.'):
     """Read table as described by the label.
 
     Calls `read_ascii_table` or `read_binary_table` as appropriate.
