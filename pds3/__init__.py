@@ -28,7 +28,7 @@ class Parser():
     tokens = ['KEYWORD', 'POINTER', 'STRING', 'INT', 'REAL',
               'UNIT', 'DATE', 'END']
 
-    literals = list('=(),')
+    literals = list('=(){},')
 
     t_POINTER = r'\^[A-Z0-9_]+'
     t_ignore_COMMENT = r'/\*.+?\*/'
@@ -96,7 +96,7 @@ class Parser():
             tok = self.lexer.token()
             if not tok:
                 break
-            print tok
+            print(tok)
 
     def p_label(self, p):
         """label : record
@@ -114,6 +114,7 @@ class Parser():
 
     def p_record(self, p):
         """record : KEYWORD '=' value
+                  | POINTER '=' INT
                   | POINTER '=' STRING
                   | POINTER '=' '(' STRING ',' INT ')'"""
         if len(p) == 4:
@@ -126,6 +127,7 @@ class Parser():
                  | DATE
                  | KEYWORD
                  | number
+                 | pds_set
                  | quantity
                  | sequence"""
         p[0] = p[1]
@@ -138,6 +140,11 @@ class Parser():
         """number : INT
                   | REAL"""
         p[0] = p[1]
+
+    def p_pds_set(self, p):
+        """pds_set : '{' value '}'
+                   | '{' sequence_values '}'"""
+        p[0] = set(p[2])
 
     def p_sequence(self, p):
         """sequence : '(' value ')'
@@ -273,8 +280,13 @@ def read_label(filename, debug=False):
 
     """
 
-    with open(filename, 'r') as inf:
-        raw_label = inf.read(-1)
+    raw_label = ''
+    with open(filename, 'rb') as inf:
+        while True:
+            line = inf.readline()
+            raw_label += line.decode('ascii')
+            if line == b'END\r\n' or line == b'END\n':
+                break
 
     parser = Parser(debug=debug)
     records = parser.parse(raw_label)
