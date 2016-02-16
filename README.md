@@ -10,11 +10,9 @@ Requires: numpy, astropy, ply.
 Time fields are assumed to be on the UTC scale.  I haven't verified if
 that assumption is valid for PDS3.
 
-Currently, only ASCII tables can be read, although I would like to
-support binary tables.
+ASCII tables can be read, and there is some support for 2D images.
 
-
-Problems?  Please, send me the label or the code to fix it.
+Problems?  Please open an issue, or submit a pull request with updated code.
 
 - Michael S. Kelley, UMD
 
