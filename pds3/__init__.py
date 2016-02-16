@@ -402,7 +402,6 @@ def read_ascii_table(label, key, path='.'):
 
     return table
 
-
 def read_table(label, key, path='.'):
     """Read table as described by the label.
 
@@ -428,3 +427,56 @@ def read_table(label, key, path='.'):
         return read_ascii_table(label, key, path=path)
     else:
         raise NotImplementedError("Table format not implemented: {}".format(format))
+
+def read_image(label, key, path="."):
+    """Read an image as described by the label.
+
+    The image is not reordered for display orientation.
+
+    Parameters
+    ----------
+    label : dict
+      The label, as read by `read_label`.
+    key : string
+      The label key of the object that describes the image.
+    path : string, optional
+      Directory path to label/table.
+
+    Returns
+    -------
+    im : ndarray
+      The image.
+
+    """
+
+    import os.path
+    import numpy as np
+
+    raise UserWarning("This is a very basic and incomplete reader.")
+
+    # The image object description.
+    desc = label[key]
+
+    shape = (desc['LINES'], desc['LINE_SAMPLES'])
+    size = '{:d}'.format(desc['SAMPLE_BITS'] // 8)
+    if 'LSB' in desc['SAMPLE_TYPE']:
+        byte_order = '<'
+    elif 'MSB' in desc['SAMPLE_TYPE']:
+        byte_order = '>'
+    else:
+        raise NotImplemented('SAMPLE_TYPE={}'.format(desc['SAMPLE_TYPE']))
+
+    if 'UNSIGNED_INTEGER' in desc['SAMPLE_TYPE']:
+        data_type = 'u'
+    else:
+        raise NotImplemented('SAMPLE_TYPE={}'.format(desc['SAMPLE_TYPE']))
+
+    dtype = byte_order + data_type + size
+
+    filename, start_record = label['^{}'.format(key)]
+    start = (start_record - 1) * int(label['RECORD_BYTES'])
+    with open(_find_file(filename, path=path), 'rb') as inf:
+        inf.seek(start)
+        im = np.fromfile(inf, dtype=dtype, count=np.prod(shape)).reshape(shape)
+
+    return im
