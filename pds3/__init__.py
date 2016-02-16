@@ -445,7 +445,7 @@ def read_table(label, key, path='.'):
     else:
         raise NotImplementedError("Table format not implemented: {}".format(format))
 
-def read_image(label, key, path="."):
+def read_image(label, key, path=".", scale_and_offset=True):
     """Read an image as described by the label.
 
     The image is not reordered for display orientation.
@@ -458,6 +458,9 @@ def read_image(label, key, path="."):
       The label key of the object that describes the image.
     path : string, optional
       Directory path to label/table.
+    scale_and_offset : bool, optional
+      Set to `True` to apply the scale and offset factors and return
+      floating point data.
 
     Returns
     -------
@@ -488,5 +491,9 @@ def read_image(label, key, path="."):
     with open(_find_file(filename, path=path), 'rb') as inf:
         inf.seek(start)
         im = np.fromfile(inf, dtype=dtype, count=np.prod(shape)).reshape(shape)
+
+    if scale_and_offset:
+        im = (desc.get('OFFSET', 0)
+              + im.astype(float) * desc.get('SCALING_FACTOR', 1))
 
     return im
