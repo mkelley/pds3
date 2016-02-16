@@ -24,6 +24,23 @@ except ImportError:
 class IllegalCharacter(Exception):
     pass
 
+SAMPLE_TYPE_TO_DTYPE = {
+    'IEEE_REAL': 'f',
+    'LSB_INTEGER': '<i',
+    'LSB_UNSIGNED_INTEGER': '<u',
+    'MAC_INTEGER': '>i',
+    'MAC_REAL': 'f',
+    'MAC_UNSIGNED_INTEGER': '>u',
+    'MSB_UNSIGNED_INTEGER': '>u',
+    'PC_INTEGER': '<i',
+    'PC_UNSIGNED_INTEGER': '<u',
+    'SUN_INTEGER': '>i',
+    'SUN_REAL': 'f',
+    'SUN_UNSIGNED_INTEGER': '>u',
+    'VAX_INTEGER': '<i',
+    'VAX_UNSIGNED_INTEGER': '<u',
+}
+
 class Parser():
     tokens = ['KEYWORD', 'POINTER', 'STRING', 'INT', 'REAL',
               'UNIT', 'DATE', 'END']
@@ -450,28 +467,21 @@ def read_image(label, key, path="."):
     """
 
     import os.path
+    import warnings
     import numpy as np
 
-    raise UserWarning("This is a very basic and incomplete reader.")
+    warnings.warn("This is a very basic and incomplete reader.")
 
     # The image object description.
     desc = label[key]
 
     shape = (desc['LINES'], desc['LINE_SAMPLES'])
     size = '{:d}'.format(desc['SAMPLE_BITS'] // 8)
-    if 'LSB' in desc['SAMPLE_TYPE']:
-        byte_order = '<'
-    elif 'MSB' in desc['SAMPLE_TYPE']:
-        byte_order = '>'
+
+    if desc['SAMPLE_TYPE'] in SAMPLE_TYPE_TO_DTYPE:
+        dtype = SAMPLE_TYPE_TO_DTYPE[desc['SAMPLE_TYPE']] + size
     else:
         raise NotImplemented('SAMPLE_TYPE={}'.format(desc['SAMPLE_TYPE']))
-
-    if 'UNSIGNED_INTEGER' in desc['SAMPLE_TYPE']:
-        data_type = 'u'
-    else:
-        raise NotImplemented('SAMPLE_TYPE={}'.format(desc['SAMPLE_TYPE']))
-
-    dtype = byte_order + data_type + size
 
     filename, start_record = label['^{}'.format(key)]
     start = (start_record - 1) * int(label['RECORD_BYTES'])
