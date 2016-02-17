@@ -456,11 +456,23 @@ def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
     # The image object description.
     desc = label[key]
 
-    shape = (desc['LINES'], desc['LINE_SAMPLES'])
-    size = '{:d}'.format(desc['SAMPLE_BITS'] // 8)
+    shape = np.array((desc['LINES'], desc['LINE_SAMPLES']))
+    size = desc['SAMPLE_BITS'] // 8
+
+    if 'LINE_PREFIX_BYTES' in desc:
+        prefix_shape = (shape[0], desc['LINE_PREFIX_BYTES'])
+    else:
+        prefix_shape = (0, 0)
+
+    if 'LINE_SUFFIX_BYTES' in desc:
+        suffix_shape = (shape[0], desc['LINE_SUFFIX_BYTES'])
+    else:
+        suffix_shape = (0, 0)
+
+    line_size = prefix_shape[0] + shape[0] * size + suffix_shape[0]
 
     if desc['SAMPLE_TYPE'] in SAMPLE_TYPE_TO_DTYPE:
-        dtype = SAMPLE_TYPE_TO_DTYPE[desc['SAMPLE_TYPE']] + size
+        dtype = '{}{:d}'.format(SAMPLE_TYPE_TO_DTYPE[desc['SAMPLE_TYPE']], size)
     else:
         raise NotImplemented('SAMPLE_TYPE={}'.format(desc['SAMPLE_TYPE']))
 
@@ -469,14 +481,31 @@ def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
     start = (start_record - 1) * int(label['RECORD_BYTES'])
 
     if verbose:
-        print('''Image shape: {}
+        print('''Image shape: {} samples
+Stored line size, including prefix and suffix: {} bytes
 Numpy data type: {}
 Filename: {} ({})
-Start byte: {}'''.format(shape, dtype, filename, found_filename, start))
+Start byte: {}'''.format(shape, line_size, dtype, filename, found_filename,
+                         start))
 
+    # The file is read into a an array of bytes in order to properly
+    # handle line prefix and suffix.
     with open(found_filename, 'rb') as inf:
         inf.seek(start)
-        im = np.fromfile(inf, dtype=dtype, count=np.prod(shape)).reshape(shape)
+        n = np.prod(line_size * shape[1])
+        buf = inf.read(n)
+        if n != len(buf):
+            raise IOError("Expected {} bytes of data, but only read {}".format(
+                    n, len(buf)))
+    
+    # remove prefix and suffix, convert to image data type and shape
+    data = np.frombuffer(buf, dtype=np.uint8, count=n)
+    del buf
+    data = data.reshape((line_size, shape[1]))
+    s = slice(prefix_shape[0], (suffix_shape[0] if suffix_shape[0] > 0 else None))
+    data = data[s, :].flatten()
+    im = np.frombuffer(data, dtype=dtype, count=np.prod(shape)).reshape(shape)
+    del data
 
     if ('OFFSET' in desc or 'SCALING_FACTOR' in desc) and scale_and_offset:
         im = (desc.get('OFFSET', 0)
