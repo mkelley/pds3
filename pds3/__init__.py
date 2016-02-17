@@ -27,17 +27,17 @@ class IllegalCharacter(Exception):
     pass
 
 SAMPLE_TYPE_TO_DTYPE = {
-    'IEEE_REAL': 'f',
+    'IEEE_REAL': '>f',
     'LSB_INTEGER': '<i',
     'LSB_UNSIGNED_INTEGER': '<u',
     'MAC_INTEGER': '>i',
-    'MAC_REAL': 'f',
+    'MAC_REAL': '>f',
     'MAC_UNSIGNED_INTEGER': '>u',
     'MSB_UNSIGNED_INTEGER': '>u',
     'PC_INTEGER': '<i',
     'PC_UNSIGNED_INTEGER': '<u',
     'SUN_INTEGER': '>i',
-    'SUN_REAL': 'f',
+    'SUN_REAL': '>f',
     'SUN_UNSIGNED_INTEGER': '>u',
     'VAX_INTEGER': '<i',
     'VAX_UNSIGNED_INTEGER': '<u',
@@ -305,10 +305,10 @@ def read_label(filename, debug=False):
 
     raw_label = ''
     with open(filename, 'rb') as inf:
-        while :
+        while True:
             line = inf.readline()
             raw_label += line.decode('ascii')
-            if line == b'END\r\n' or line == b'END\n':
+            if line.strip() == b'END' or line == '':
                 break
 
     parser = PDS3Parser(debug=debug)
@@ -421,7 +421,7 @@ def read_ascii_table(label, key, path='.'):
 
     return table
 
-def read_image(label, key, path=".", scale_and_offset=True):
+def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
     """Read an image as described by the label.
 
     The image is not reordered for display orientation.
@@ -437,6 +437,8 @@ def read_image(label, key, path=".", scale_and_offset=True):
     scale_and_offset : bool, optional
       Set to `True` to apply the scale and offset factors and return
       floating point data.
+    verbose : bool, optional
+      Print some informational info.
 
     Returns
     -------
@@ -449,7 +451,7 @@ def read_image(label, key, path=".", scale_and_offset=True):
     import warnings
     import numpy as np
 
-    warnings.warn("This is a basic and incomplete reader.")
+    warnings.warn("read_image is a basic and incomplete reader.")
 
     # The image object description.
     desc = label[key]
@@ -463,12 +465,20 @@ def read_image(label, key, path=".", scale_and_offset=True):
         raise NotImplemented('SAMPLE_TYPE={}'.format(desc['SAMPLE_TYPE']))
 
     filename, start_record = label['^{}'.format(key)]
+    found_filename = _find_file(filename, path=path)
     start = (start_record - 1) * int(label['RECORD_BYTES'])
-    with open(_find_file(filename, path=path), 'rb') as inf:
+
+    if verbose:
+        print('''Image shape: {}
+Numpy data type: {}
+Filename: {} ({})
+Start byte: {}'''.format(shape, dtype, filename, found_filename, start))
+
+    with open(found_filename, 'rb') as inf:
         inf.seek(start)
         im = np.fromfile(inf, dtype=dtype, count=np.prod(shape)).reshape(shape)
 
-    if scale_and_offset:
+    if ('OFFSET' in desc or 'SCALING_FACTOR' in desc) and scale_and_offset:
         im = (desc.get('OFFSET', 0)
               + im.astype(float) * desc.get('SCALING_FACTOR', 1))
 
