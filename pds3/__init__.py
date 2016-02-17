@@ -426,6 +426,9 @@ def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
 
     The image is not reordered for display orientation.
 
+    When there are interleaved data (i.e., the BANDS keyword is
+    present), they will be separated and a data cube returned.
+
     Parameters
     ----------
     label : dict
@@ -443,7 +446,8 @@ def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
     Returns
     -------
     im : ndarray
-      The image.
+      The image.  If there are multiple bands, the first index
+      iterates over each band.
 
     """
 
@@ -458,6 +462,11 @@ def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
 
     shape = np.array((desc['LINES'], desc['LINE_SAMPLES']))
     size = desc['SAMPLE_BITS'] // 8
+
+    if 'BANDS' in desc:
+        bands = desc['BANDS']
+    else:
+        bands = 1
 
     if 'LINE_PREFIX_BYTES' in desc:
         prefix_shape = (shape[0], desc['LINE_PREFIX_BYTES'])
@@ -482,11 +491,12 @@ def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
 
     if verbose:
         print('''Image shape: {} samples
-Stored line size, including prefix and suffix: {} bytes
+Number of bands: {}
+Stored line size, including prefix, and suffix: {} bytes
 Numpy data type: {}
 Filename: {} ({})
-Start byte: {}'''.format(shape, line_size, dtype, filename, found_filename,
-                         start))
+Start byte: {}'''.format(shape, line_size, bands, dtype, filename,
+                         found_filename, start))
 
     # The file is read into a an array of bytes in order to properly
     # handle line prefix and suffix.
@@ -506,6 +516,18 @@ Start byte: {}'''.format(shape, line_size, dtype, filename, found_filename,
     data = data[s, :].flatten()
     im = np.frombuffer(data, dtype=dtype, count=np.prod(shape)).reshape(shape)
     del data
+
+    # separate out interleaved data
+    if bands > 1:
+        if desc['BAND_STORAGE_TYPE'].upper() == 'SAMPLE_INTERLEAVED':
+            im = im.reshape((shape[0], shape[1] // bands, bands))
+            im = np.rollaxis(im, 2)
+        elif desc['BAND_STORAGE_TYPE'].upper() == 'LINE_INTERLEAVED':
+            im = im.reshape((shape[0] // bands, bands, shape[1]))
+            im = np.rollaxis(im, 1)
+        else:
+            raise ValueError('Incorrect BAND_STORAGE_TYPE: {}'.format(
+                    desc['BAND_STORAGE_TYPE']))
 
     if ('OFFSET' in desc or 'SCALING_FACTOR' in desc) and scale_and_offset:
         im = (desc.get('OFFSET', 0)
