@@ -6,6 +6,7 @@ pds3 --- Simple (minded) PDS3 tools
 
 read_label       - Read a PDS3 label.
 read_ascii_table - Read an ASCII table as described by a label.
+read_image       - Read an image as described by the label.
 read_table       - Read a table as described by a label.
 
 """
@@ -13,6 +14,7 @@ read_table       - Read a table as described by a label.
 __all__ = [
     'read_label',
     'read_ascii_table',
+    'read_image',
     'read_table'
 ]
 
@@ -41,7 +43,7 @@ SAMPLE_TYPE_TO_DTYPE = {
     'VAX_UNSIGNED_INTEGER': '<u',
 }
 
-class Parser():
+class PDS3Parser():
     tokens = ['KEYWORD', 'POINTER', 'STRING', 'INT', 'REAL',
               'UNIT', 'DATE', 'END']
 
@@ -303,13 +305,13 @@ def read_label(filename, debug=False):
 
     raw_label = ''
     with open(filename, 'rb') as inf:
-        while True:
+        while :
             line = inf.readline()
             raw_label += line.decode('ascii')
             if line == b'END\r\n' or line == b'END\n':
                 break
 
-    parser = Parser(debug=debug)
+    parser = PDS3Parser(debug=debug)
     records = parser.parse(raw_label)
     return _records2dict(records)
 
@@ -419,32 +421,6 @@ def read_ascii_table(label, key, path='.'):
 
     return table
 
-def read_table(label, key, path='.'):
-    """Read table as described by the label.
-
-    Calls `read_ascii_table` or `read_binary_table` as appropriate.
-
-    Parameters
-    ----------
-    label : dict
-      The label, as read by `read_label`.
-    key : string
-      The label key of the object that describes the table.
-    path : string, optional
-      Directory path to label/table.
-
-    Returns
-    -------
-    table : astropy Table
-
-    """
-
-    format = label[key]['INTERCHANGE_FORMAT']
-    if format == 'ASCII':
-        return read_ascii_table(label, key, path=path)
-    else:
-        raise NotImplementedError("Table format not implemented: {}".format(format))
-
 def read_image(label, key, path=".", scale_and_offset=True):
     """Read an image as described by the label.
 
@@ -473,7 +449,7 @@ def read_image(label, key, path=".", scale_and_offset=True):
     import warnings
     import numpy as np
 
-    warnings.warn("This is a very basic and incomplete reader.")
+    warnings.warn("This is a basic and incomplete reader.")
 
     # The image object description.
     desc = label[key]
@@ -497,3 +473,29 @@ def read_image(label, key, path=".", scale_and_offset=True):
               + im.astype(float) * desc.get('SCALING_FACTOR', 1))
 
     return im
+
+def read_table(label, key, path='.'):
+    """Read table as described by the label.
+
+    Calls `read_ascii_table` or `read_binary_table` as appropriate.
+
+    Parameters
+    ----------
+    label : dict
+      The label, as read by `read_label`.
+    key : string
+      The label key of the object that describes the table.
+    path : string, optional
+      Directory path to label/table.
+
+    Returns
+    -------
+    table : astropy Table
+
+    """
+
+    format = label[key]['INTERCHANGE_FORMAT']
+    if format == 'ASCII':
+        return read_ascii_table(label, key, path=path)
+    else:
+        raise NotImplementedError("Table format not implemented: {}".format(format))
