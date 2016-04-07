@@ -48,7 +48,7 @@ SAMPLE_TYPE_TO_DTYPE = {
     'VAX_UNSIGNED_INTEGER': '<u',
 }
 
-class Parser():
+class PDS3Parser():
     tokens = ['KEYWORD', 'POINTER', 'STRING', 'INT', 'REAL',
               'UNIT', 'DATE', 'END']
 
