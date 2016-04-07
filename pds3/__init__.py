@@ -24,6 +24,11 @@ except ImportError:
 class IllegalCharacter(Exception):
     pass
 
+pds3_data_type_to_dtype = dict(
+    MSB_UNSIGNED_INTEGER='>u',
+    MSB_INTEGER='>i',
+)
+
 class Parser():
     tokens = ['KEYWORD', 'POINTER', 'STRING', 'INT', 'REAL',
               'UNIT', 'DATE', 'END']
@@ -324,17 +329,21 @@ def read_ascii_table(label, key, path='.'):
     col_starts = []
     col_ends = []
     converters = dict()
+    def repeat(dtype, col):
+        n = col.get('ITEMS', 1)
+        return dtype if n == 1 else (dtype,) * n
+    
     for i in range(n):
         col = desc['COLUMN'][i]
         col_starts.append(col['START_BYTE'] - 1)
         col_ends.append(col_starts[-1] + col['BYTES'] - 1)
 
         if col['DATA_TYPE'] == 'ASCII_REAL':
-            dtype = np.float
+            dtype = repeat(np.float, col)
         elif col['DATA_TYPE'] == 'ASCII_INTEGER':
-            dtype = np.int
+            dtype = repeat(np.int, col)
         elif col['DATA_TYPE'] == 'CHARACTER':
-            dtype = np.dtype('S{}'.format(col['BYTES']))
+            dtype = repeat('S{}'.format(col['BYTES']), col)
         else:
             raise ValueError("Unknown data type: ", col['DATA_TYPE'])
         converters['col{}'.format(i+1)] = [ascii.convert_numpy(dtype)]
@@ -378,10 +387,11 @@ def read_ascii_table(label, key, path='.'):
 
     # Save column meta data.
     for i in range(n):
-        col = desc['COLUMN'][i]
-        table.columns[i].name = col['NAME']
-        if 'DESCRIPTION' in col:
-            table.columns[i].description = col['DESCRIPTION']
+        for j in range(desc.get('ITEMS', 1)):
+            col = desc['COLUMN'][i]
+            table.columns[i].name = col['NAME']
+            if 'DESCRIPTION' in col:
+                table.columns[i].description = col['DESCRIPTION']
 
     # Save table meta data.
     for k, v in desc.items():
@@ -390,6 +400,74 @@ def read_ascii_table(label, key, path='.'):
 
     return table
 
+def read_binary_table(label, key, path='.'):
+    """Read a binary table as described by the label.
+
+    Parameters
+    ----------
+    label : dict
+      The label, as read by `read_label`.
+    key : string
+      The label key of the object that describes the table.
+    path : string, optional
+      Directory path to label/table.
+
+    Returns
+    -------
+    table : 
+
+    Raises
+    ------
+    NotImpementedError
+    ValueError
+
+    """
+
+    import numpy as np
+
+    desc = label[key]
+    dtype = []
+    byte = 1
+    offset = np.zeros(len(desc['COLUMN']))
+    scale = np.ones(len(desc['COLUMN']))
+    for i, col in enumerate(desc['COLUMN']):
+        if col['START_BYTE'] != byte:
+            raise NotImplementedError("Table requires skipping bytes.")
+
+        if col['ITEMS'] != 1:
+            raise NotImplementedError("Table requires mutliple items per column.")
+
+        byte += col['START_BYTE']
+        x = pds3_data_type_to_dtype[col['DATA_TYPE']] + str(col['ITEM_BYTES'])
+        dtype.append((col['NAME'], x))
+
+        offset[i] = col.get('OFFSET', 0.0)
+        scale[i] = col.get('SCALE', 1.0)
+
+    if desc['ROW_BYTES'] != bytes:
+        raise NotImplementedError("Table requires skipping bytes.")
+
+    dtype = np.dtype(dtype)
+
+    if isinstance(label['^' + key], tuple):
+        filename, start = label['^' + key]
+        start = int(start) - 1
+        filename = _find_file(filename, path=path)
+        if 'RECORD_BYTES' in label:
+            record_bytes = label['RECORD_BYTES']
+        else:
+            record_bytes = desc['RECORD_BYTES']
+
+        inf = open(filename, 'r')
+        inf.seek(record_bytes * start)
+    else:
+        filename = _find_file(label['^' + key], path=path)
+        start = 0
+        inf = open(filename, 'r')
+
+    n = desc['ROWS']
+    data = np.fromfile(inf, dtype=dtype, count=n).view(np.recarray)
+    return data
 
 def read_table(label, key, path='.'):
     """Read table as described by the label.
