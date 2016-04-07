@@ -26,14 +26,11 @@ except ImportError:
 class IllegalCharacter(Exception):
     pass
 
-<<<<<<< HEAD
 pds3_data_type_to_dtype = dict(
     MSB_UNSIGNED_INTEGER='>u',
     MSB_INTEGER='>i',
 )
 
-class Parser():
-=======
 SAMPLE_TYPE_TO_DTYPE = {
     'IEEE_REAL': '>f',
     'LSB_INTEGER': '<i',
@@ -51,8 +48,7 @@ SAMPLE_TYPE_TO_DTYPE = {
     'VAX_UNSIGNED_INTEGER': '<u',
 }
 
-class PDS3Parser():
->>>>>>> 8f2f278c814a8d6e4d06d91ef414db8b5611f127
+class Parser():
     tokens = ['KEYWORD', 'POINTER', 'STRING', 'INT', 'REAL',
               'UNIT', 'DATE', 'END']
 
@@ -435,25 +431,14 @@ def read_ascii_table(label, key, path='.'):
 
     return table
 
-<<<<<<< HEAD
 def read_binary_table(label, key, path='.'):
     """Read a binary table as described by the label.
-=======
-def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
-    """Read an image as described by the label.
-
-    The image is not reordered for display orientation.
-
-    When there are interleaved data (i.e., the BANDS keyword is
-    present), they will be separated and a data cube returned.
->>>>>>> 8f2f278c814a8d6e4d06d91ef414db8b5611f127
 
     Parameters
     ----------
     label : dict
       The label, as read by `read_label`.
     key : string
-<<<<<<< HEAD
       The label key of the object that describes the table.
     path : string, optional
       Directory path to label/table.
@@ -514,7 +499,20 @@ def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
     n = desc['ROWS']
     data = np.fromfile(inf, dtype=dtype, count=n).view(np.recarray)
     return data
-=======
+
+def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
+    """Read an image as described by the label.
+
+    The image is not reordered for display orientation.
+
+    When there are interleaved data (i.e., the BANDS keyword is
+    present), they will be separated and a data cube returned.
+
+    Parameters
+    ----------
+    label : dict
+      The label, as read by `read_label`.
+    key : string
       The label key of the object that describes the image.
     path : string, optional
       Directory path to label/table.
@@ -615,7 +613,6 @@ Start byte: {}'''.format(shape, line_size, bands, dtype, filename,
               + im.astype(float) * desc.get('SCALING_FACTOR', 1))
 
     return im
->>>>>>> 8f2f278c814a8d6e4d06d91ef414db8b5611f127
 
 def read_table(label, key, path='.'):
     """Read table as described by the label.
