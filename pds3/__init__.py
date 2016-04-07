@@ -6,6 +6,7 @@ pds3 --- Simple (minded) PDS3 tools
 
 read_label       - Read a PDS3 label.
 read_ascii_table - Read an ASCII table as described by a label.
+read_image       - Read an image as described by the label.
 read_table       - Read a table as described by a label.
 
 """
@@ -13,6 +14,7 @@ read_table       - Read a table as described by a label.
 __all__ = [
     'read_label',
     'read_ascii_table',
+    'read_image',
     'read_table'
 ]
 
@@ -24,12 +26,33 @@ except ImportError:
 class IllegalCharacter(Exception):
     pass
 
+<<<<<<< HEAD
 pds3_data_type_to_dtype = dict(
     MSB_UNSIGNED_INTEGER='>u',
     MSB_INTEGER='>i',
 )
 
 class Parser():
+=======
+SAMPLE_TYPE_TO_DTYPE = {
+    'IEEE_REAL': '>f',
+    'LSB_INTEGER': '<i',
+    'LSB_UNSIGNED_INTEGER': '<u',
+    'MAC_INTEGER': '>i',
+    'MAC_REAL': '>f',
+    'MAC_UNSIGNED_INTEGER': '>u',
+    'MSB_UNSIGNED_INTEGER': '>u',
+    'PC_INTEGER': '<i',
+    'PC_UNSIGNED_INTEGER': '<u',
+    'SUN_INTEGER': '>i',
+    'SUN_REAL': '>f',
+    'SUN_UNSIGNED_INTEGER': '>u',
+    'VAX_INTEGER': '<i',
+    'VAX_UNSIGNED_INTEGER': '<u',
+}
+
+class PDS3Parser():
+>>>>>>> 8f2f278c814a8d6e4d06d91ef414db8b5611f127
     tokens = ['KEYWORD', 'POINTER', 'STRING', 'INT', 'REAL',
               'UNIT', 'DATE', 'END']
 
@@ -103,7 +126,7 @@ class Parser():
             tok = self.lexer.token()
             if not tok:
                 break
-            print tok
+            print(tok)
 
     def p_label(self, p):
         """label : record
@@ -121,6 +144,7 @@ class Parser():
 
     def p_record(self, p):
         """record : KEYWORD '=' value
+                  | POINTER '=' INT
                   | POINTER '=' STRING
                   | POINTER '=' '(' STRING ',' INT ')'"""
         if len(p) == 4:
@@ -133,6 +157,7 @@ class Parser():
                  | DATE
                  | KEYWORD
                  | number
+                 | pds_set
                  | quantity
                  | sequence"""
         p[0] = p[1]
@@ -145,6 +170,11 @@ class Parser():
         """number : INT
                   | REAL"""
         p[0] = p[1]
+
+    def p_pds_set(self, p):
+        """pds_set : '{' value '}'
+                   | '{' sequence_values '}'"""
+        p[0] = set(p[2])
 
     def p_sequence(self, p):
         """sequence : '(' value ')'
@@ -282,10 +312,15 @@ def read_label(filename, debug=False):
 
     """
 
-    with open(filename, 'r') as inf:
-        raw_label = inf.read(-1)
+    raw_label = ''
+    with open(filename, 'rb') as inf:
+        while True:
+            line = inf.readline()
+            raw_label += line.decode('ascii')
+            if line.strip() == b'END' or line == '':
+                break
 
-    parser = Parser(debug=debug)
+    parser = PDS3Parser(debug=debug)
     records = parser.parse(raw_label)
     return _records2dict(records)
 
@@ -400,14 +435,25 @@ def read_ascii_table(label, key, path='.'):
 
     return table
 
+<<<<<<< HEAD
 def read_binary_table(label, key, path='.'):
     """Read a binary table as described by the label.
+=======
+def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
+    """Read an image as described by the label.
+
+    The image is not reordered for display orientation.
+
+    When there are interleaved data (i.e., the BANDS keyword is
+    present), they will be separated and a data cube returned.
+>>>>>>> 8f2f278c814a8d6e4d06d91ef414db8b5611f127
 
     Parameters
     ----------
     label : dict
       The label, as read by `read_label`.
     key : string
+<<<<<<< HEAD
       The label key of the object that describes the table.
     path : string, optional
       Directory path to label/table.
@@ -468,6 +514,108 @@ def read_binary_table(label, key, path='.'):
     n = desc['ROWS']
     data = np.fromfile(inf, dtype=dtype, count=n).view(np.recarray)
     return data
+=======
+      The label key of the object that describes the image.
+    path : string, optional
+      Directory path to label/table.
+    scale_and_offset : bool, optional
+      Set to `True` to apply the scale and offset factors and return
+      floating point data.
+    verbose : bool, optional
+      Print some informational info.
+
+    Returns
+    -------
+    im : ndarray
+      The image.  If there are multiple bands, the first index
+      iterates over each band.
+
+    """
+
+    import os.path
+    import warnings
+    import numpy as np
+
+    warnings.warn("read_image is a basic and incomplete reader.")
+
+    # The image object description.
+    desc = label[key]
+
+    shape = np.array((desc['LINES'], desc['LINE_SAMPLES']))
+    size = desc['SAMPLE_BITS'] // 8
+
+    if 'BANDS' in desc:
+        bands = desc['BANDS']
+    else:
+        bands = 1
+
+    if 'LINE_PREFIX_BYTES' in desc:
+        prefix_shape = (shape[0], desc['LINE_PREFIX_BYTES'])
+    else:
+        prefix_shape = (0, 0)
+
+    if 'LINE_SUFFIX_BYTES' in desc:
+        suffix_shape = (shape[0], desc['LINE_SUFFIX_BYTES'])
+    else:
+        suffix_shape = (0, 0)
+
+    line_size = prefix_shape[0] + shape[0] * size + suffix_shape[0]
+
+    if desc['SAMPLE_TYPE'] in SAMPLE_TYPE_TO_DTYPE:
+        dtype = '{}{:d}'.format(SAMPLE_TYPE_TO_DTYPE[desc['SAMPLE_TYPE']], size)
+    else:
+        raise NotImplemented('SAMPLE_TYPE={}'.format(desc['SAMPLE_TYPE']))
+
+    filename, start_record = label['^{}'.format(key)]
+    found_filename = _find_file(filename, path=path)
+    start = (start_record - 1) * int(label['RECORD_BYTES'])
+
+    if verbose:
+        print('''Image shape: {} samples
+Number of bands: {}
+Stored line size, including prefix, and suffix: {} bytes
+Numpy data type: {}
+Filename: {} ({})
+Start byte: {}'''.format(shape, line_size, bands, dtype, filename,
+                         found_filename, start))
+
+    # The file is read into a an array of bytes in order to properly
+    # handle line prefix and suffix.
+    with open(found_filename, 'rb') as inf:
+        inf.seek(start)
+        n = np.prod(line_size * shape[1])
+        buf = inf.read(n)
+        if n != len(buf):
+            raise IOError("Expected {} bytes of data, but only read {}".format(
+                    n, len(buf)))
+    
+    # remove prefix and suffix, convert to image data type and shape
+    data = np.frombuffer(buf, dtype=np.uint8, count=n)
+    del buf
+    data = data.reshape((line_size, shape[1]))
+    s = slice(prefix_shape[0], (suffix_shape[0] if suffix_shape[0] > 0 else None))
+    data = data[s, :].flatten()
+    im = np.frombuffer(data, dtype=dtype, count=np.prod(shape)).reshape(shape)
+    del data
+
+    # separate out interleaved data
+    if bands > 1:
+        if desc['BAND_STORAGE_TYPE'].upper() == 'SAMPLE_INTERLEAVED':
+            im = im.reshape((shape[0], shape[1] // bands, bands))
+            im = np.rollaxis(im, 2)
+        elif desc['BAND_STORAGE_TYPE'].upper() == 'LINE_INTERLEAVED':
+            im = im.reshape((shape[0] // bands, bands, shape[1]))
+            im = np.rollaxis(im, 1)
+        else:
+            raise ValueError('Incorrect BAND_STORAGE_TYPE: {}'.format(
+                    desc['BAND_STORAGE_TYPE']))
+
+    if ('OFFSET' in desc or 'SCALING_FACTOR' in desc) and scale_and_offset:
+        im = (desc.get('OFFSET', 0)
+              + im.astype(float) * desc.get('SCALING_FACTOR', 1))
+
+    return im
+>>>>>>> 8f2f278c814a8d6e4d06d91ef414db8b5611f127
 
 def read_table(label, key, path='.'):
     """Read table as described by the label.
