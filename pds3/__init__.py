@@ -26,12 +26,7 @@ except ImportError:
 class IllegalCharacter(Exception):
     pass
 
-pds3_data_type_to_dtype = dict(
-    MSB_UNSIGNED_INTEGER='>u',
-    MSB_INTEGER='>i',
-)
-
-SAMPLE_TYPE_TO_DTYPE = {
+PDS3_DATA_TYPE_TO_DTYPE = {
     'IEEE_REAL': '>f',
     'LSB_INTEGER': '<i',
     'LSB_UNSIGNED_INTEGER': '<u',
@@ -39,6 +34,7 @@ SAMPLE_TYPE_TO_DTYPE = {
     'MAC_REAL': '>f',
     'MAC_UNSIGNED_INTEGER': '>u',
     'MSB_UNSIGNED_INTEGER': '>u',
+    'MSB_INTEGER': '>i',
     'PC_INTEGER': '<i',
     'PC_UNSIGNED_INTEGER': '<u',
     'SUN_INTEGER': '>i',
@@ -469,7 +465,7 @@ def read_binary_table(label, key, path='.'):
             raise NotImplementedError("Table requires mutliple items per column.")
 
         byte += col['START_BYTE']
-        x = pds3_data_type_to_dtype[col['DATA_TYPE']] + str(col['ITEM_BYTES'])
+        x = PDS3_DATA_TYPE_TO_DTYPE[col['DATA_TYPE']] + str(col['ITEM_BYTES'])
         dtype.append((col['NAME'], x))
 
         offset[i] = col.get('OFFSET', 0.0)
@@ -559,8 +555,9 @@ def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
 
     line_size = prefix_shape[0] + shape[0] * size + suffix_shape[0]
 
-    if desc['SAMPLE_TYPE'] in SAMPLE_TYPE_TO_DTYPE:
-        dtype = '{}{:d}'.format(SAMPLE_TYPE_TO_DTYPE[desc['SAMPLE_TYPE']], size)
+    if desc['SAMPLE_TYPE'] in PDS3_DATA_TYPE_TO_DTYPE:
+        dtype = '{}{:d}'.format(PDS3_DATA_TYPE_TO_DTYPE[desc['SAMPLE_TYPE']],
+                                size)
     else:
         raise NotImplemented('SAMPLE_TYPE={}'.format(desc['SAMPLE_TYPE']))
 
