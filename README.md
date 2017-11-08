@@ -14,7 +14,27 @@ ASCII tables can be read, and there is some support for 2D images.
 
 Problems?  Please open an issue, or submit a pull request with updated code.
 
-- Michael S. Kelley, UMD
+- Michael S. P. Kelley, UMD
+
+Usage
+=====
+Read your label into the **experimental** `PDS3Label` class and access
+key values via indexing:
+
+```python
+lbl = PDS3Label('product.lbl')
+r = lbl['RECORD_LENGTH']
+shape = lbl['IMAGE']['LINES'], lbl['IMAGE']['LINE_SAMPLES']
+```
+
+Print the full label as a string:
+
+```python
+print(lbl)
+```
+
+I've tested round-tripping a short label from the International Halley
+Watch archive and it worked, but more testing is needed.
 
 Caution
 =======
