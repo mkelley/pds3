@@ -105,7 +105,7 @@ class PDS3Parser():
                                  **kwargs)
 
     def t_KEYWORD(self, t):
-        r'[A-Z][A-Z0-9_:]+'
+        r'[A-Z][A-Z0-9_:]*'
         if t.value == 'END':
             t.type = 'END'
         return t
