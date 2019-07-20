@@ -7,6 +7,7 @@ __all__ = [
     'read_table'
 ]
 
+from warnings import warn
 from collections import OrderedDict
 
 try:
@@ -14,14 +15,20 @@ try:
 except ImportError:
     raise ImportError("pds3 requires the PLY (Python Lex-Yacc) module.")
 
+
+class ExperimentalFeature(Warning):
+    pass
+
+
 class IllegalCharacter(Exception):
     pass
+
 
 class PDS3Keyword(str):
     """PDS3 keyword.
 
     In the following, the keyword is "IMAGE":
-      
+
       OBJECT = IMAGE
         ...
       END_OBJECT = IMAGE
@@ -29,6 +36,7 @@ class PDS3Keyword(str):
     """
     def __new__(cls, value):
         return str.__new__(cls, value)
+
 
 class PDS3Object(OrderedDict):
     """PDS3 data object definition.
@@ -39,7 +47,8 @@ class PDS3Object(OrderedDict):
 
     """
     pass
-    
+
+
 class PDS3Group(OrderedDict):
     """PDS3 group statement.
 
@@ -49,9 +58,10 @@ class PDS3Group(OrderedDict):
 
     """
     pass
-    
+
 
 PDS3_DATA_TYPE_TO_DTYPE = {
+    'CHARACTER': 'a',
     'IEEE_REAL': '>f',
     'LSB_INTEGER': '<i',
     'LSB_UNSIGNED_INTEGER': '<u',
@@ -68,6 +78,7 @@ PDS3_DATA_TYPE_TO_DTYPE = {
     'VAX_INTEGER': '<i',
     'VAX_UNSIGNED_INTEGER': '<u',
 }
+
 
 class PDS3Parser():
     tokens = ['KEYWORD', 'POINTER', 'STRING', 'INT', 'REAL',
@@ -123,7 +134,7 @@ class PDS3Parser():
         r'"[^"]+"'
         t.value = t.value[1:-1].replace('\r', '')
         return t
- 
+
     def t_REAL(self, t):
         r'[+-]?(([0-9]+\.[0-9]*)|(\.[0-9]+))([Ee][+-]?[0-9]+)?'
         t.value = float(t.value)
@@ -236,9 +247,9 @@ def _records2dict(records, object_index=0):
       index of that object.
 
     """
-    
+
     from collections import OrderedDict
-    
+
     label = OrderedDict()
     start = 0
     if object_index != 0:
@@ -252,7 +263,7 @@ def _records2dict(records, object_index=0):
     while i < len(records):
         # groups and objects are both terminated with 'END_...'
         if (records[i] == ('END_OBJECT', object_name)
-            or records[i] == ('END_GROUP', object_name)):
+                or records[i] == ('END_GROUP', object_name)):
             return label, i
         elif records[i][0] in ['OBJECT', 'GROUP']:
             key = PDS3Keyword(records[i][1])
@@ -275,6 +286,7 @@ def _records2dict(records, object_index=0):
         i += 1
 
     return label
+
 
 def _find_file(filename, path='.'):
     """Search a directory for a file.
@@ -301,7 +313,7 @@ def _find_file(filename, path='.'):
     ------
     IOError
       When the file is not found.
-      
+
     """
 
     import os
@@ -310,6 +322,7 @@ def _find_file(filename, path='.'):
             f = os.path.sep.join([path, f])
             return f
     raise IOError("No match for {} in {}".format(filename, path))
+
 
 def read_label(filename, debug=False):
     """Read in a PDS3 label.
@@ -347,6 +360,7 @@ def read_label(filename, debug=False):
     parser = PDS3Parser(debug=debug)
     records = parser.parse(raw_label)
     return _records2dict(records)
+
 
 def read_ascii_table(label, key, path='.'):
     """Read an ASCII table as described by the label.
@@ -388,10 +402,11 @@ def read_ascii_table(label, key, path='.'):
     col_starts = []
     col_ends = []
     converters = dict()
+
     def repeat(dtype, col):
         n = col.get('ITEMS', 1)
         return dtype if n == 1 else (dtype,) * n
-    
+
     for i in range(n):
         col = desc['COLUMN'][i]
         col_starts.append(col['START_BYTE'] - 1)
@@ -431,7 +446,7 @@ def read_ascii_table(label, key, path='.'):
                        data_start=start, data_end=nrows+start,
                        col_starts=col_starts, col_ends=col_ends,
                        converters=converters, guess=False)
-    #inf.close()
+    # inf.close()
 
     # Mask data
     for i in range(n):
@@ -459,6 +474,7 @@ def read_ascii_table(label, key, path='.'):
 
     return table
 
+
 def read_binary_table(label, key, path='.'):
     """Read a binary table as described by the label.
 
@@ -484,6 +500,8 @@ def read_binary_table(label, key, path='.'):
 
     import numpy as np
 
+    warn(ExperimentalFeature('Reading binary tables is not well-tested.'))
+
     desc = label[key]
     dtype = []
     byte = 1
@@ -493,17 +511,22 @@ def read_binary_table(label, key, path='.'):
         if col['START_BYTE'] != byte:
             raise NotImplementedError("Table requires skipping bytes.")
 
-        if col['ITEMS'] != 1:
-            raise NotImplementedError("Table requires mutliple items per column.")
+        items = ''
+        if col.get('ITEMS', 1) != 1:
+            items = '({},)'.format(col['ITEMS'])
+            warn(ExperimentalFeature(
+                "Column requires mutliple items per column."))
 
-        byte += col['START_BYTE']
-        x = PDS3_DATA_TYPE_TO_DTYPE[col['DATA_TYPE']] + str(col['ITEM_BYTES'])
-        dtype.append((col['NAME'], x))
+        byte += col['BYTES']
+        print(i, byte)
+        item_bytes = col.get('ITEM_BYTES', col['BYTES'])
+        x = PDS3_DATA_TYPE_TO_DTYPE[col['DATA_TYPE']] + str(item_bytes)
+        dtype.append((col['NAME'], items + x))
 
         offset[i] = col.get('OFFSET', 0.0)
         scale[i] = col.get('SCALE', 1.0)
 
-    if desc['ROW_BYTES'] != bytes:
+    if desc['ROW_BYTES'] != byte - 1:
         raise NotImplementedError("Table requires skipping bytes.")
 
     dtype = np.dtype(dtype)
@@ -527,6 +550,7 @@ def read_binary_table(label, key, path='.'):
     n = desc['ROWS']
     data = np.fromfile(inf, dtype=dtype, count=n).view(np.recarray)
     return data
+
 
 def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
     """Read an image as described by the label.
@@ -614,13 +638,14 @@ Start byte: {}'''.format(shape, line_size, bands, dtype, filename,
         buf = inf.read(n)
         if n != len(buf):
             raise IOError("Expected {} bytes of data, but only read {}".format(
-                    n, len(buf)))
-    
+                n, len(buf)))
+
     # remove prefix and suffix, convert to image data type and shape
     data = np.frombuffer(buf, dtype=np.uint8, count=n)
     del buf
     data = data.reshape((line_size, shape[1]))
-    s = slice(prefix_shape[0], (suffix_shape[0] if suffix_shape[0] > 0 else None))
+    s = slice(prefix_shape[0], (suffix_shape[0]
+                                if suffix_shape[0] > 0 else None))
     data = data[s, :].flatten()
     im = np.frombuffer(data, dtype=dtype, count=np.prod(shape)).reshape(shape)
     del data
@@ -635,13 +660,14 @@ Start byte: {}'''.format(shape, line_size, bands, dtype, filename,
             im = np.rollaxis(im, 1)
         else:
             raise ValueError('Incorrect BAND_STORAGE_TYPE: {}'.format(
-                    desc['BAND_STORAGE_TYPE']))
+                desc['BAND_STORAGE_TYPE']))
 
     if ('OFFSET' in desc or 'SCALING_FACTOR' in desc) and scale_and_offset:
         im = (desc.get('OFFSET', 0)
               + im.astype(float) * desc.get('SCALING_FACTOR', 1))
 
     return im
+
 
 def read_table(label, key, path='.'):
     """Read table as described by the label.
@@ -667,4 +693,5 @@ def read_table(label, key, path='.'):
     if format == 'ASCII':
         return read_ascii_table(label, key, path=path)
     else:
-        raise NotImplementedError("Table format not implemented: {}".format(format))
+        raise NotImplementedError(
+            "Table format not implemented: {}".format(format))
