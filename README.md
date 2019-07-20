@@ -1,5 +1,5 @@
-pds3
-====
+pds3 v0.2.1
+==============
 
 Python module to read NASA Planetary Data System v3 files or data.
 These functions are rudimentary, and should not be used for
@@ -10,7 +10,7 @@ Requires: numpy, astropy, ply.
 Time fields are assumed to be on the UTC scale.  I haven't verified if
 that assumption is valid for PDS3.
 
-ASCII tables can be read, and there is some support for 2D images.
+ASCII tables can be read, and there is some support for 2D images.  Binary table reading is experimental (`pds3.core.read_binary_table`).
 
 Problems?  Please open an issue, or submit a pull request with updated code.
 
