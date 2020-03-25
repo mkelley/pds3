@@ -1,9 +1,7 @@
 #!/usr/bin/env python
-from numpy.distutils.core import setup
+from setuptools import setup
 
 if __name__ == "__main__":
-    from glob import glob
-
     setup(name='pds3',
           version='0.2.1',
           description='Read NASA Planetary Data System v3 files.',
@@ -11,7 +9,7 @@ if __name__ == "__main__":
           author_email="msk@astro.umd.edu",
           url="https://github.com/mkelley/pds3",
           packages=['pds3'],
-          requires=['numpy', 'ply', 'astropy'],
+          install_requires=['numpy', 'ply', 'astropy'],
           license='BSD',
           classifiers=[
               'Intended Audience :: Science/Research',
