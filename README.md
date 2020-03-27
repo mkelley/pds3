@@ -1,4 +1,4 @@
-pds3 v0.2.1
+pds3 v0.2.2
 ==============
 
 Python module to read NASA Planetary Data System v3 files or data.

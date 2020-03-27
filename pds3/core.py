@@ -469,7 +469,7 @@ def read_ascii_table(label, key, path='.'):
 
     # Save table meta data.
     for k, v in desc.items():
-        if k is not 'COLUMN':
+        if k != 'COLUMN':
             table.meta[k] = v
 
     return table
