@@ -3,7 +3,7 @@ from setuptools import setup
 
 if __name__ == "__main__":
     setup(name='pds3',
-          version='0.2.1',
+          version='0.2.2',
           description='Read NASA Planetary Data System v3 files.',
           author="Michael S. Kelley",
           author_email="msk@astro.umd.edu",
