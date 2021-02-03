@@ -354,7 +354,7 @@ def read_label(filename, debug=False):
         while True:
             line = inf.readline()
             raw_label += line.decode('ascii')
-            if line.strip() == b'END' or line == '':
+            if line.strip() == b'END' or line == b'':
                 break
 
     parser = PDS3Parser(debug=debug)
@@ -515,7 +515,7 @@ def read_binary_table(label, key, path='.'):
         if col.get('ITEMS', 1) != 1:
             items = '({},)'.format(col['ITEMS'])
             warn(ExperimentalFeature(
-                "Column requires mutliple items per column."))
+                "Column requires multiple items per column."))
 
         byte += col['BYTES']
         print(i, byte)
