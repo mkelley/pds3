@@ -28,6 +28,7 @@ def test_localhour():
     ('candelas', u.cd),
     ('radians', u.rad),
     ('steradians', u.sr),
+    ('bytes', u.byte)
 ])
 def test_plural_unit(unit, other):
     with units.enable():

@@ -37,6 +37,7 @@ moles = u.def_unit('moles', u.mol, namespace=_namespace)
 candelas = u.def_unit('candelas', u.cd, namespace=_namespace)
 radians = u.def_unit('radians', u.rad, namespace=_namespace)
 steradians = u.def_unit('steradians', u.sr, namespace=_namespace)
+bytes = u.def_unit('bytes', u.byte, namespace=_namespace)
 
 ###########################################################################
 # DOCSTRING
