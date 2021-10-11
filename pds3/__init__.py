@@ -27,3 +27,4 @@ __all__ = [
 
 from .core import *
 from .pds3label import *
+from . import units

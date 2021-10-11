@@ -7,6 +7,7 @@ __all__ = [
     'read_table'
 ]
 
+import os
 from warnings import warn
 from collections import OrderedDict
 
@@ -14,6 +15,13 @@ try:
     from ply import lex, yacc
 except ImportError:
     raise ImportError("pds3 requires the PLY (Python Lex-Yacc) module.")
+
+import numpy as np
+from astropy.io import ascii
+from astropy.time import Time
+import astropy.units as u
+
+from . import units as pds3_units
 
 
 class ExperimentalFeature(Warning):
@@ -94,7 +102,6 @@ class PDS3Parser():
     unit_translate = dict(v='V', k='K')
 
     def __init__(self, debug=False):
-        import os
         self.debug = debug
         self.lexer = lex.lex(module=self, debug=self.debug)
         self.parser = yacc.yacc(module=self, debug=self.debug,
@@ -112,13 +119,11 @@ class PDS3Parser():
 
     def t_DATE(self, t):
         r'\d\d\d\d-\d\d-\d\d(T\d\d:\d\d(:\d\d(.\d+)?)?)?Z?'
-        from astropy.time import Time
         t.value = Time(t.value, scale='utc')
         return t
 
     def t_UNIT(self, t):
         r'<[\w*^\-/]+>'
-        import astropy.units as u
 
         # most astropy units are lower-case versions of the PDS3 units
         unit = t.value[1:-1].lower()
@@ -127,7 +132,9 @@ class PDS3Parser():
         if unit in self.unit_translate:
             unit = self.unit_translate[unit]
 
-        t.value = u.Unit(unit)
+        with pds3_units.enable():
+            t.value = u.Unit(unit)
+
         return t
 
     def t_STRING(self, t):
@@ -248,8 +255,6 @@ def _records2dict(records, object_index=0):
 
     """
 
-    from collections import OrderedDict
-
     label = OrderedDict()
     start = 0
     if object_index != 0:
@@ -316,7 +321,6 @@ def _find_file(filename, path='.'):
 
     """
 
-    import os
     for f in sorted(os.listdir(path)):
         if f.lower() == filename.lower():
             f = os.path.sep.join([path, f])
@@ -386,9 +390,6 @@ def read_ascii_table(label, key, path='.'):
     ValueError
 
     """
-
-    import numpy as np
-    from astropy.io import ascii
 
     # The table object description.
     desc = label[key]
@@ -498,8 +499,6 @@ def read_binary_table(label, key, path='.'):
 
     """
 
-    import numpy as np
-
     warn(ExperimentalFeature('Reading binary tables is not well-tested.'))
 
     desc = label[key]
@@ -582,11 +581,7 @@ def read_image(label, key, path=".", scale_and_offset=True, verbose=False):
 
     """
 
-    import os.path
-    import warnings
-    import numpy as np
-
-    warnings.warn("read_image is a basic and incomplete reader.")
+    warn("read_image is a basic and incomplete reader.")
 
     # The image object description.
     desc = label[key]
